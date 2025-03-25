@@ -2,6 +2,8 @@
 
 This script helps convert WAV audio files to be compatible with the Roland SP404 MK2 sampler. It creates a complete collection of SP404 MK2-compatible files in a single location while preserving your original files and folder structure.
 
+> 📝 **For a detailed writeup about why I created this tool and how it works, check out my [blog post on the SP404 MK2 WAV Converter](https://sebpatron.com/sp404mk2-wav-converter/).**
+
 ## What This Script Does
 
 - Presents a folder selection dialog to choose your samples directory
