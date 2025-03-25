@@ -49,16 +49,31 @@ is_compatible() {
     esac
 }
 
+# Counter for converted files
+converted_count=0
+skipped_count=0
+already_converted_count=0
+
 # Find all WAV files in the source directory and process them
 # Exclude files starting with ._ (macOS resource fork files)
+# Exclude files in the converted directory
 find "$SOURCE_DIR" -name "*.wav" -not -path "$CONVERTED_DIR/*" -not -name "._*" -exec sh -c '
   for file; do
     # Get the relative path from SOURCE_DIR
     rel_path="${file#'"$SOURCE_DIR"'/}"
     
+    # Check if the file has already been converted in a previous run
+    converted_file="'"$CONVERTED_DIR"'/$rel_path"
+    if [ -f "$converted_file" ]; then
+      echo "Already converted in previous run: $file"
+      already_converted_count=$((already_converted_count + 1))
+      continue
+    fi
+    
     # Check if the file is already compatible
     if is_compatible "$file"; then
       echo "Skipping compatible file: $file"
+      skipped_count=$((skipped_count + 1))
       continue
     fi
     
@@ -66,31 +81,31 @@ find "$SOURCE_DIR" -name "*.wav" -not -path "$CONVERTED_DIR/*" -not -name "._*" 
     target_dir="'"$CONVERTED_DIR"'/$(dirname "$rel_path")"
     mkdir -p "$target_dir"
     
-    # Convert the file, preserving its path
+    # Convert the file, preserving its path and original filename
     echo "Converting: $file"
-    ffmpeg -i "$file" -acodec pcm_s16le -ar 44100 "'"$CONVERTED_DIR"'/$rel_path" || echo "Failed to convert: $file"
+    if ffmpeg -i "$file" -acodec pcm_s16le -ar 44100 "'"$CONVERTED_DIR"'/$rel_path" 2>/dev/null; then
+      # Update converted count
+      converted_count=$((converted_count + 1))
+    else
+      echo "Failed to convert: $file"
+    fi
   done
 ' sh {} +
 
-# Check if any files were converted
-if [ -z "$(find "$CONVERTED_DIR" -type f -name "*.wav" 2>/dev/null)" ]; then
+# Report results
+if [ "$converted_count" -eq 0 ] && [ "$already_converted_count" -eq 0 ]; then
     echo "No WAV files needed conversion."
-    rm -rf "$CONVERTED_DIR"
-    exit 0
+    # Clean up the empty converted directory if it contains no files
+    if [ -z "$(find "$CONVERTED_DIR" -type f -name "*.wav" 2>/dev/null)" ]; then
+        rm -rf "$CONVERTED_DIR"
+    fi
+else
+    echo "Conversion complete!"
+    [ "$converted_count" -gt 0 ] && echo "- $converted_count files were converted in this run"
+    [ "$already_converted_count" -gt 0 ] && echo "- $already_converted_count files were already converted in previous runs"
+    [ "$skipped_count" -gt 0 ] && echo "- $skipped_count files were already compatible and skipped"
+    echo "Converted files are located in: $CONVERTED_DIR"
+    echo "Original files remain untouched."
 fi
 
-# Copy the converted files back to the source directory, preserving structure
-echo "Copying converted files back to source directory..."
-find "$CONVERTED_DIR" -type f -name "*.wav" -exec sh -c '
-  for file; do
-    # Get the relative path from CONVERTED_DIR
-    rel_path="${file#'"$CONVERTED_DIR"'/}"
-    # Copy the file back to the source directory
-    cp -f "$file" "'"$SOURCE_DIR"'/$rel_path"
-  done
-' sh {} +
-
-# Remove the temporary converted directory
-rm -rf "$CONVERTED_DIR"
-
-echo "Conversion complete! All incompatible files have been converted to SP404 MK2 compatible format while preserving folder structure."
+echo "Your samples are now ready for the SP404 MK2. Enjoy!"
