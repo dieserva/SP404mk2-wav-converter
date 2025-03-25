@@ -49,10 +49,10 @@ is_compatible() {
     esac
 }
 
-# Counter for converted files
+# Counters for tracking what's happening
 converted_count=0
-skipped_count=0
-already_converted_count=0
+copied_count=0
+already_processed_count=0
 
 # Find all WAV files in the source directory and process them
 # Exclude files starting with ._ (macOS resource fork files)
@@ -62,18 +62,11 @@ find "$SOURCE_DIR" -name "*.wav" -not -path "$CONVERTED_DIR/*" -not -name "._*" 
     # Get the relative path from SOURCE_DIR
     rel_path="${file#'"$SOURCE_DIR"'/}"
     
-    # Check if the file has already been converted in a previous run
+    # Check if the file has already been processed in a previous run
     converted_file="'"$CONVERTED_DIR"'/$rel_path"
     if [ -f "$converted_file" ]; then
-      echo "Already converted in previous run: $file"
-      already_converted_count=$((already_converted_count + 1))
-      continue
-    fi
-    
-    # Check if the file is already compatible
-    if is_compatible "$file"; then
-      echo "Skipping compatible file: $file"
-      skipped_count=$((skipped_count + 1))
+      echo "Already processed in previous run: $file"
+      already_processed_count=$((already_processed_count + 1))
       continue
     fi
     
@@ -81,30 +74,39 @@ find "$SOURCE_DIR" -name "*.wav" -not -path "$CONVERTED_DIR/*" -not -name "._*" 
     target_dir="'"$CONVERTED_DIR"'/$(dirname "$rel_path")"
     mkdir -p "$target_dir"
     
-    # Convert the file, preserving its path and original filename
-    echo "Converting: $file"
-    if ffmpeg -i "$file" -acodec pcm_s16le -ar 44100 "'"$CONVERTED_DIR"'/$rel_path" 2>/dev/null; then
-      # Update converted count
-      converted_count=$((converted_count + 1))
+    # Check if the file is already compatible
+    if is_compatible "$file"; then
+      echo "Copying compatible file: $file"
+      # Just copy the file without conversion
+      cp "$file" "'"$CONVERTED_DIR"'/$rel_path"
+      copied_count=$((copied_count + 1))
     else
-      echo "Failed to convert: $file"
+      # Convert the file, preserving its path and original filename
+      echo "Converting incompatible file: $file"
+      if ffmpeg -i "$file" -acodec pcm_s16le -ar 44100 "'"$CONVERTED_DIR"'/$rel_path" 2>/dev/null; then
+        # Update converted count
+        converted_count=$((converted_count + 1))
+      else
+        echo "Failed to convert: $file"
+      fi
     fi
   done
 ' sh {} +
 
 # Report results
-if [ "$converted_count" -eq 0 ] && [ "$already_converted_count" -eq 0 ]; then
-    echo "No WAV files needed conversion."
+total_processed=$((converted_count + copied_count))
+if [ "$total_processed" -eq 0 ] && [ "$already_processed_count" -eq 0 ]; then
+    echo "No WAV files were found to process."
     # Clean up the empty converted directory if it contains no files
     if [ -z "$(find "$CONVERTED_DIR" -type f -name "*.wav" 2>/dev/null)" ]; then
         rm -rf "$CONVERTED_DIR"
     fi
 else
-    echo "Conversion complete!"
-    [ "$converted_count" -gt 0 ] && echo "- $converted_count files were converted in this run"
-    [ "$already_converted_count" -gt 0 ] && echo "- $already_converted_count files were already converted in previous runs"
-    [ "$skipped_count" -gt 0 ] && echo "- $skipped_count files were already compatible and skipped"
-    echo "Converted files are located in: $CONVERTED_DIR"
+    echo "Processing complete!"
+    [ "$converted_count" -gt 0 ] && echo "- $converted_count incompatible files were converted in this run"
+    [ "$copied_count" -gt 0 ] && echo "- $copied_count already-compatible files were copied in this run"
+    [ "$already_processed_count" -gt 0 ] && echo "- $already_processed_count files were already processed in previous runs"
+    echo "All files are located in: $CONVERTED_DIR"
     echo "Original files remain untouched."
 fi
 

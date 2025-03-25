@@ -1,15 +1,18 @@
 # SP404 MK2 WAV File Converter
 
-This script helps convert WAV audio files to be compatible with the Roland SP404 MK2 sampler. It automatically detects incompatible files and converts only those that need conversion, preserving your folder structure and original files.
+This script helps convert WAV audio files to be compatible with the Roland SP404 MK2 sampler. It creates a complete collection of SP404 MK2-compatible files in a single location while preserving your original files and folder structure.
 
 ## What This Script Does
 
 - Presents a folder selection dialog to choose your samples directory
 - Scans for WAV files in the selected folder and all subfolders
 - Checks each file for compatibility with the SP404 MK2
-- Places converted files in a "converted" subdirectory while maintaining your folder structure
+- Places ALL files in a "converted" subdirectory:
+  - Compatible files are simply copied as-is
+  - Incompatible files are converted to a compatible format
+- Preserves your original folder structure in the "converted" directory
 - Preserves your original files completely untouched
-- Intelligently skips files that have already been converted in previous runs
+- Intelligently skips files that have already been processed in previous runs
 
 ## SP404 MK2 Compatibility Requirements
 
@@ -31,7 +34,7 @@ Files that don't meet these requirements will not play correctly on the SP404 MK
 
 ## Safe for Your Original Files
 
-**This script never modifies your original files.** Instead, it creates a "converted" subdirectory where all converted files are stored with the same directory structure as your original files. This makes it easy to locate the converted files while ensuring your original samples remain untouched.
+**This script never modifies your original files.** Instead, it creates a "converted" subdirectory that contains a complete mirror of your sample library with all files guaranteed to be compatible with the SP404 MK2. This makes it easy to copy your entire library to your sampler while ensuring your original samples remain untouched.
 
 ## Prerequisites
 
@@ -59,33 +62,31 @@ Before using this script, you need to install:
    ./convert-wavs.sh
    ```
 4. When prompted, select the folder containing your WAV samples
-5. The script will process all WAV files and convert only those that are incompatible
-6. Find your converted files in the "converted" subdirectory within your selected folder
+5. The script will process all WAV files
+6. Find your complete set of SP404 MK2-compatible files in the "converted" subdirectory
 
 ## How It Works
 
 1. **Folder Selection**: Uses AppleScript to show a native macOS folder selection dialog
 2. **Smart Processing**: For each WAV file, the script:
-   - Checks if the file has already been converted in a previous run (and skips if it has)
+   - Checks if the file has already been processed in a previous run (and skips if it has)
    - Uses `ffprobe` to analyze the audio format
-   - Checks if the bit depth is compatible (16-bit or 24-bit)
-   - Verifies the sample rate is one of the supported rates
-   - Skips files that are already compatible
-3. **Conversion**: For incompatible files, the script:
-   - Creates a directory structure in the "converted" folder matching your original folders
-   - Converts the file to 16-bit, 44.1kHz PCM WAV format
-   - Preserves the original file path and naming
-4. **Detailed Reporting**: After conversion, the script provides:
-   - Count of files converted in the current run
-   - Count of files that were already converted in previous runs
-   - Count of files that were already compatible
-   - Location of all converted files
+   - Determines if the file is already compatible with the SP404 MK2
+3. **File Handling**:
+   - Compatible files are copied directly to the "converted" directory with no changes
+   - Incompatible files are converted to 16-bit, 44.1kHz PCM WAV format
+   - All files maintain their original paths and filenames within the converted directory
+4. **Detailed Reporting**: After processing, the script provides:
+   - Count of incompatible files converted in the current run
+   - Count of compatible files copied in the current run
+   - Count of files that were already processed in previous runs
+   - Location of all processed files
 
 ## Troubleshooting
 
 - **Permission Denied**: Make sure the script is executable (`chmod +x convert-wavs.sh`)
 - **Command Not Found**: Ensure FFmpeg is installed (`brew install ffmpeg`)
-- **No Files Converted**: Your files may already be compatible with the SP404 MK2
+- **No Files Processed**: Check that your directory contains WAV files
 
 ## License
 
